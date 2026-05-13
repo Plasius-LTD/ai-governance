@@ -171,6 +171,9 @@ We label approachable tasks as **good first issue** and **help wanted**.
 - We follow **SemVer**.
 - Breaking changes require a major bump and migration notes.
 - Keep the `CHANGELOG.md` (or release notes) clear about user-facing changes.
+- Configure GitHub workflow readiness: create a `production` environment for `cd.yml` and bind `NPM_TOKEN` there.
+- Configure `CODECOV_TOKEN` for `ci.yml` coverage uploads.
+- Require publish approvals using `production` environment protection rules.
 
 ---
 
