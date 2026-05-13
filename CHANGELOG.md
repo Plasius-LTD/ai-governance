@@ -6,4 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.1] - 2026-05-13
+
 - Added initial public package scaffold with governance, legal, docs, build, test, and pack-check baselines.
+
+
+[0.1.1]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.1
