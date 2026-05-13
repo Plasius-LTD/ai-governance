@@ -4,7 +4,11 @@ AI guardrail, policy decision, confidence, and audit contracts for Plasius agent
 
 ## Scope
 
-This package is part of the layered `@plasius/ai-*` package family. It is intentionally bootstrapped with a small public contract surface so implementation can evolve behind tracked Feature/Story/Task work.
+This package defines policy decision contracts for allow, deny, escalate, redact, and audit-only outcomes.
+
+- decisions are resolved against confidence and data classification inputs
+- feature-flag snapshots can force audit-only rollout behavior
+- each outcome includes structured audit metadata for downstream compliance and replay
 
 ## Install
 
@@ -18,6 +22,27 @@ npm install @plasius/ai-governance
 import { packageDescriptor } from "@plasius/ai-governance";
 
 console.log(packageDescriptor.packageName);
+```
+
+```ts
+import {
+  AI_GOVERNANCE_FEATURE_FLAGS,
+  resolveAiGovernanceDecision,
+} from "@plasius/ai-governance";
+
+const result = resolveAiGovernanceDecision({
+  requestedDecision: "allow",
+  policyId: "policy-default",
+  policyVersion: "2026-05",
+  correlationId: "corr-001",
+  confidence: 0.92,
+  dataClassification: "public",
+  featureFlags: {
+    [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+  },
+});
+
+console.log(result.outcome);
 ```
 
 ## Development
