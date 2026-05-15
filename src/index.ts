@@ -41,10 +41,6 @@ export const AI_GOVERNANCE_DATA_CLASSIFICATIONS = [
 export type AiGovernanceDataClassification =
   (typeof AI_GOVERNANCE_DATA_CLASSIFICATIONS)[number];
 
-const AI_GOVERNANCE_OUTCOME_INDEX = Object.fromEntries(
-  AI_GOVERNANCE_OUTCOMES.map((outcome, index) => [outcome, index + 1])
-) as Record<AiGovernanceOutcome, number>;
-
 const AI_GOVERNANCE_CONFIDENCE_THRESHOLDS = {
   redactForSensitiveAllow: 0.4,
   escalateOnLowConfidenceDeny: 0.45,
