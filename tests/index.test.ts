@@ -79,6 +79,63 @@ describe("@plasius/ai-governance", () => {
     });
   });
 
+  it("defaults non-finite confidence to zero before policy evaluation", () => {
+    expect(
+      resolveAiGovernanceDecision({
+        requestedDecision: "allow",
+        policyId: "policy-nan",
+        policyVersion: "2026-05-A",
+        correlationId: "corr-nan",
+        dataClassification: "sensitive",
+        confidence: Number.NaN,
+        featureFlags: {
+          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+        },
+      })
+    ).toMatchObject({
+      confidence: 0,
+      outcome: "redact",
+      reasonCodes: ["low-confidence-sensitive-content"],
+    });
+  });
+
+  it("disables low-confidence redaction requests for audit only", () => {
+    expect(
+      resolveAiGovernanceDecision({
+        requestedDecision: "redact",
+        policyId: "policy-redact",
+        policyVersion: "2026-05-A",
+        correlationId: "corr-redact",
+        confidence: 0.1,
+        featureFlags: {
+          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+        },
+      })
+    ).toMatchObject({
+      requestedDecision: "redact",
+      outcome: "audit-only",
+      reasonCodes: ["redaction-disabled-for-unreliable-input"],
+    });
+  });
+
+  it("adds a pass reason when governance allows the requested outcome", () => {
+    expect(
+      resolveAiGovernanceDecision({
+        requestedDecision: "allow",
+        policyId: "policy-pass",
+        policyVersion: "2026-05-A",
+        correlationId: "corr-pass",
+        confidence: 0.99,
+        featureFlags: {
+          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+        },
+      })
+    ).toMatchObject({
+      outcome: "allow",
+      reasonCodes: ["governance-policy-pass"],
+    });
+  });
+
   it("falls back to audit-only when governance flag is disabled", () => {
     expect(
       resolveAiGovernanceDecision({
