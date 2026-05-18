@@ -136,6 +136,41 @@ describe("@plasius/ai-governance", () => {
     });
   });
 
+  it("defaults missing confidence and audit-only outcomes safely", () => {
+    expect(
+      resolveAiGovernanceDecision({
+        requestedDecision: "audit-only",
+        policyId: "policy-audit-only",
+        policyVersion: "2026-05-A",
+        correlationId: "corr-audit-only",
+        reasonCodes: [" ", "pre-reviewed"],
+        featureFlags: {
+          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+        },
+      })
+    ).toMatchObject({
+      confidence: 0,
+      outcome: "audit-only",
+      reasonCodes: ["pre-reviewed"],
+    });
+
+    expect(
+      resolveAiGovernanceDecision({
+        requestedDecision: "audit-only",
+        policyId: "policy-audit-default",
+        policyVersion: "2026-05-A",
+        correlationId: "corr-audit-default",
+        confidence: 0.99,
+        featureFlags: {
+          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+        },
+      })
+    ).toMatchObject({
+      outcome: "audit-only",
+      reasonCodes: ["governance-defaulted-to-audit"],
+    });
+  });
+
   it("falls back to audit-only when governance flag is disabled", () => {
     expect(
       resolveAiGovernanceDecision({
