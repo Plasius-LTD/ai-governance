@@ -7,13 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 - **Added**
-  - (placeholder)
+  - Added policy outcome constants and decision-resolution contracts for governance allow/deny/escalate/redact/audit-only flows.
 
 - **Changed**
-  - (placeholder)
+- Expanded governance feature flag contracts with audit metadata, confidence thresholds, and escalation fallback behavior.
 
 - **Fixed**
-  - (placeholder)
+  - Removed an unused outcome index so the lint gate stays clean.
 
 - **Security**
   - (placeholder)
