@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   id-token: write # for npm provenance (requires Node 18+ and npm >=9)
   attestations: write
 
@@ -30,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js 24
         uses: actions/setup-node@v4
@@ -37,65 +40,93 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Bump version & decide publish flags
+      - name: Determine release mode and version
         id: pkg
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           BUMP: ${{ inputs.bump }}
           PREID: ${{ inputs.preid }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Decide bump command
-          BUMP_CMD=""
-          case "${BUMP:-patch}" in
-            major|minor|patch)
-              if [ -n "${PREID:-}" ]; then
-                # Convert to pre* if preid provided
-                case "${BUMP}" in
-                  major) BUMP_CMD="npm version premajor --preid ${PREID} -m 'chore: release v%s [skip ci]'" ;;
-                  minor) BUMP_CMD="npm version preminor --preid ${PREID} -m 'chore: release v%s [skip ci]'" ;;
-                  patch) BUMP_CMD="npm version prepatch --preid ${PREID} -m 'chore: release v%s [skip ci]'" ;;
-                esac
-              else
-                BUMP_CMD="npm version ${BUMP} -m 'chore: release v%s [skip ci]'"
-              fi
-              ;;
-            none)
-              # No version bump; use existing version
-              BUMP_CMD="echo"
-              ;;
-            *)
-              echo "Unknown bump type: ${BUMP}" >&2
-              exit 1
-              ;;
-          esac
+          NAME=$(node -p "require('./package.json').name")
+          CURRENT_VER=$(node -p "require('./package.json').version")
+          PUBLISHED_VER="$(npm view "$NAME" version 2>/dev/null || true)"
+
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Run this workflow from main so release prep and publish both start from protected main." >&2
+            exit 1
+          fi
 
           if [ "${BUMP}" = "none" ]; then
-            CURRENT_VER=$(node -p "require('./package.json').version")
-            NEW_VER="v${CURRENT_VER}"
+            MODE="publish"
+            TARGET_VER="$CURRENT_VER"
           else
-            # shellcheck disable=SC2086
-            NEW_VER=$(sh -lc "$BUMP_CMD")
+            MODE="prepare"
+            case "${BUMP:-patch}" in
+              major|minor|patch)
+                if [ -n "${PREID:-}" ]; then
+                  case "${BUMP}" in
+                    major) npm version premajor --preid "${PREID}" --no-git-tag-version ;;
+                    minor) npm version preminor --preid "${PREID}" --no-git-tag-version ;;
+                    patch) npm version prepatch --preid "${PREID}" --no-git-tag-version ;;
+                  esac
+                else
+                  npm version "${BUMP}" --no-git-tag-version
+                fi
+                TARGET_VER=$(node -p "require('./package.json').version")
+                ;;
+              *)
+                echo "Unknown bump type: ${BUMP}" >&2
+                exit 1
+                ;;
+            esac
           fi
 
-          echo "New version: $NEW_VER"
-          git push --follow-tags
-          
-          # Expose tag (vX.Y.Z) and version (X.Y.Z) for later steps
-          VER_NO_V=${NEW_VER#v}
-          echo "tag=$NEW_VER" >> "$GITHUB_OUTPUT"
-          echo "version=$VER_NO_V" >> "$GITHUB_OUTPUT"
+          TAG="v${TARGET_VER}"
+          BRANCH="release/${TAG}"
 
-          NAME=$(node -p "require('./package.json').name")
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          git fetch --tags origin
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            if [ -n "${PUBLISHED_VER}" ] && [ "${PUBLISHED_VER}" = "${TARGET_VER}" ]; then
+              echo "Version ${TARGET_VER} is already published to npm; cut a new version instead." >&2
+              exit 1
+            fi
+
+            if gh release view "${TAG}" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "${TAG}" --json isDraft --jq '.isDraft')"
+              if [ "${IS_DRAFT}" != "true" ]; then
+                echo "GitHub release ${TAG} is already published; cut a new version instead." >&2
+                exit 1
+              fi
+            fi
+
+            echo "Deleting stale unpublished tag ${TAG} before preparing a fresh release."
+            git push origin ":refs/tags/${TAG}"
+          fi
+          git tag -d "${TAG}" >/dev/null 2>&1 || true
+
           if npm view "$NAME" version >/dev/null 2>&1; then
-            echo "flags=" >> "$GITHUB_OUTPUT"
+            FLAGS=""
           else
-            echo "flags=--access public" >> "$GITHUB_OUTPUT"
+            FLAGS="--access public"
           fi
+
+          if [ -n "${PUBLISHED_VER}" ] && [ "${PUBLISHED_VER}" = "${TARGET_VER}" ]; then
+            PUBLISHED="true"
+          else
+            PUBLISHED="false"
+          fi
+
+          echo "mode=${MODE}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TARGET_VER}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "flags=${FLAGS}" >> "$GITHUB_OUTPUT"
+          echo "published=${PUBLISHED}" >> "$GITHUB_OUTPUT"
           
       - name: Install deps (CI)
         run: npm ci
@@ -124,6 +155,7 @@ jobs:
           subject-path: sbom.cdx.json
 
       - name: Update CHANGELOG.md (move Unreleased to new version)
+        if: steps.pkg.outputs.mode == 'prepare'
         env:
           VERSION: ${{ steps.pkg.outputs.version }}
           TAG: ${{ steps.pkg.outputs.tag }}
@@ -210,11 +242,89 @@ jobs:
             echo "[${VERSION}]: https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}" >> "$FILE"
           fi
 
-          git add "$FILE"
-          git commit -m "docs(changelog): release v${VERSION}"
-          git push
+      - name: Create release-prep branch and PR
+        if: steps.pkg.outputs.mode == 'prepare'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.pkg.outputs.branch }}
+          TAG: ${{ steps.pkg.outputs.tag }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          git checkout -B "${BRANCH}"
+          git add package.json
+          if [ -f package-lock.json ]; then
+            git add package-lock.json
+          fi
+          git add CHANGELOG.md
+
+          if git diff --cached --quiet; then
+            echo "No release-prep changes were staged for ${TAG}." >&2
+            exit 1
+          fi
+
+          git commit -m "chore: prepare release ${TAG}"
+          git push --force-with-lease --set-upstream origin "${BRANCH}"
+
+          PR_TITLE="chore: prepare release ${TAG}"
+          PR_BODY=$(cat <<EOF
+          ## Summary
+          - prepare \`${TAG}\` for publication from protected \`main\`
+          - move the current \`Unreleased\` notes into \`${VERSION}\`
+          - stage the follow-up publish run of \`.github/workflows/cd.yml\` with \`bump=none\`
+
+          ## Next step
+          1. Merge this PR to \`main\`.
+          2. Run \`.github/workflows/cd.yml\` on \`main\` with \`bump=none\` to tag, draft the GitHub release, and publish to npm.
+          EOF
+          )
+
+          PR_NUMBER="$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number')"
+          if [ -n "${PR_NUMBER}" ] && [ "${PR_NUMBER}" != "null" ]; then
+            gh pr edit "${PR_NUMBER}" --title "${PR_TITLE}" --body "${PR_BODY}"
+          else
+            gh pr create --base main --head "${BRANCH}" --title "${PR_TITLE}" --body "${PR_BODY}"
+          fi
+
+      - name: Validate publish metadata on main
+        if: steps.pkg.outputs.mode == 'publish'
+        env:
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md is missing the ${VERSION} release section. Merge the release-prep PR and rerun with bump=none." >&2
+            exit 1
+          fi
+
+      - name: Create release tag from main
+        if: steps.pkg.outputs.mode == 'publish'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pkg.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            if gh release view "${TAG}" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "${TAG}" --json isDraft --jq '.isDraft')"
+              if [ "${IS_DRAFT}" != "true" ]; then
+                echo "Published release ${TAG} already exists; reusing the existing tag."
+                exit 0
+              fi
+            fi
+
+            echo "Deleting stale unpublished tag ${TAG} before recreating it from main."
+            git push origin ":refs/tags/${TAG}"
+          fi
+
+          git tag "${TAG}"
+          git push origin "${TAG}"
 
       - name: Create GitHub Release draft (immutable-safe)
+        if: steps.pkg.outputs.mode == 'publish'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -223,8 +333,8 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
             if [ "$IS_DRAFT" != "true" ]; then
-              echo "Release $TAG already exists and is published. Immutable releases cannot be modified after publication; cut a new version instead."
-              exit 1
+              echo "Release $TAG is already published; skipping draft refresh."
+              exit 0
             fi
 
             echo "Draft release $TAG already exists; refreshing mutable assets."
@@ -242,12 +352,14 @@ jobs:
           fi
 
       - name: Publish
+        if: steps.pkg.outputs.mode == 'publish' && steps.pkg.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm publish ${{ steps.pkg.outputs.flags }} --provenance
 
       - name: Publish GitHub Release
+        if: steps.pkg.outputs.mode == 'publish'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
