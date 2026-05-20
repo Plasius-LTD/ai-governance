@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Expanded governance feature flag contracts with audit metadata, confidence thresholds, and escalation fallback behavior.
 
 - **Fixed**
+  - Release automation now prepares version/changelog updates on a release PR before publishing from protected `main`.
   - Removed an unused outcome index so the lint gate stays clean.
 
 - **Security**
