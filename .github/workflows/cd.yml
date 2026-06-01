@@ -19,10 +19,12 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: write
   pull-requests: write
   id-token: write # for npm provenance (requires Node 18+ and npm >=9)
   attestations: write
+
 
 jobs:
   publish:
@@ -127,13 +129,13 @@ jobs:
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
           echo "flags=${FLAGS}" >> "$GITHUB_OUTPUT"
           echo "published=${PUBLISHED}" >> "$GITHUB_OUTPUT"
-          
+
       - name: Install deps (CI)
         run: npm ci
 
       - name: Test (coverage)
         run: npm run test -- --coverage
-        
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
