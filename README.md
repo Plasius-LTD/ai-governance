@@ -55,14 +55,6 @@ npm run test:coverage
 npm run pack:check
 ```
 
-## Release Workflow
-
-Protected `main` releases use a two-step flow:
-
-1. Run `.github/workflows/cd.yml` with `bump=patch|minor|major` to open or refresh a `release/vX.Y.Z` prep PR.
-2. Merge that PR to `main`.
-3. Rerun `.github/workflows/cd.yml` on `main` with `bump=none` to tag, draft the GitHub release, and publish to npm.
-
 ## Governance
 
 - Security policy: [SECURITY.md](./SECURITY.md)

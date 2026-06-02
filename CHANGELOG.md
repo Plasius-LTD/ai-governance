@@ -7,27 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 - **Added**
-  - (placeholder)
-
-- **Changed**
-  - (placeholder)
-
-- **Fixed**
-  - (placeholder)
-
-- **Security**
-  - (placeholder)
-
-## [0.1.3] - 2026-05-20
-
-- **Added**
   - Added policy outcome constants and decision-resolution contracts for governance allow/deny/escalate/redact/audit-only flows.
 
 - **Changed**
 - Expanded governance feature flag contracts with audit metadata, confidence thresholds, and escalation fallback behavior.
 
 - **Fixed**
-  - Release automation now prepares version/changelog updates on a release PR before publishing from protected `main`.
   - Removed an unused outcome index so the lint gate stays clean.
 
 - **Security**
@@ -55,4 +40,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 [0.1.1]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.1
 [0.1.2]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.2
-[0.1.3]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.3
