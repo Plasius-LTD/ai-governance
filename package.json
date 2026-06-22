@@ -1,6 +1,6 @@
 {
   "name": "@plasius/ai-governance",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "AI guardrail, policy decision, confidence, and audit contracts for Plasius agentic AI.",
   "type": "module",
   "sideEffects": false,
