@@ -18,6 +18,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Security**
   - (placeholder)
 
+## [0.1.5] - 2026-06-22
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.4] - 2026-06-22
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
 ## [0.1.3] - 2026-05-20
 
 - **Added**
@@ -56,3 +84,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.1]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.1
 [0.1.2]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.2
 [0.1.3]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.3
+[0.1.4]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.4
+[0.1.5]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.5
