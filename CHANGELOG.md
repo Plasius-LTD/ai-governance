@@ -10,6 +10,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - (placeholder)
 
 - **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.6] - 2026-06-27
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
   - Refreshed development dependency baselines to the latest stable published versions and regenerated the npm lockfile from a clean install.
 
 - **Fixed**
@@ -86,3 +100,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.3]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.3
 [0.1.4]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.4
 [0.1.5]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.5
+[0.1.6]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.6
