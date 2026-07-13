@@ -44,7 +44,7 @@ export type AiGovernanceDataClassification =
 const AI_GOVERNANCE_CONFIDENCE_THRESHOLDS = {
   redactForSensitiveAllow: 0.4,
   escalateOnLowConfidenceDeny: 0.45,
-  keepRedactionOnLowConfidenceRedact: 0.35,
+  escalateOnLowConfidenceRedact: 0.35,
 } as const;
 
 function clampRatio(value: number): number {
@@ -172,10 +172,10 @@ export function resolveAiGovernanceDecision(
 
   if (
     input.requestedDecision === "redact" &&
-    normalizedConfidence < AI_GOVERNANCE_CONFIDENCE_THRESHOLDS.keepRedactionOnLowConfidenceRedact
+    normalizedConfidence < AI_GOVERNANCE_CONFIDENCE_THRESHOLDS.escalateOnLowConfidenceRedact
   ) {
-    outcome = "audit-only";
-    reasonCodes.push("redaction-disabled-for-unreliable-input");
+    outcome = "escalate";
+    reasonCodes.push("low-confidence-redaction-escalated");
   }
 
   if (reasonCodes.length === 0) {
@@ -207,6 +207,13 @@ export function resolveAiGovernanceDecision(
   };
 }
 
+/**
+ * Return whether processing may continue for an outcome.
+ *
+ * `audit-only` is deliberately non-enforcing: it permits processing without
+ * applying redaction or another policy control. Callers that require an
+ * enforced privacy control must inspect the concrete outcome as well.
+ */
 export function isAiGovernanceOutcomeAllowed(
   outcome: AiGovernanceOutcome
 ): outcome is "allow" | "redact" | "audit-only" {

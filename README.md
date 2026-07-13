@@ -10,6 +10,28 @@ This package defines policy decision contracts for allow, deny, escalate, redact
 - feature-flag snapshots can force audit-only rollout behavior
 - each outcome includes structured audit metadata for downstream compliance and replay
 
+## Outcome semantics
+
+| Outcome | Processing may continue | Enforced control |
+| --- | --- | --- |
+| `allow` | Yes | No additional control |
+| `deny` | No | Request is blocked |
+| `escalate` | No | Human or higher-assurance review is required |
+| `redact` | Yes | Redaction must be applied by the caller |
+| `audit-only` | Yes | None; evidence is recorded without enforcing a control |
+
+When governance is enabled, a direct `redact` decision with normalized confidence below `0.35` resolves to `escalate` with reason code `low-confidence-redaction-escalated`. This is fail-closed: unreliable evidence cannot silently turn a privacy control into a non-enforcing pass. The audit outcome mirrors the resolved `escalate` outcome.
+
+`audit-only` remains an allowed, deliberately non-enforcing public outcome for compatibility. It can be requested explicitly, and it is also returned with source `feature-disabled` while the governance feature flag is absent or false. Callers that require an enforced privacy control must inspect the concrete outcome and must not treat `isAiGovernanceOutcomeAllowed(...)` as proof that redaction occurred.
+
+### Rollout and rollback
+
+Set `ai.governance.enabled` to `true` to enforce confidence policy. Setting it to `false`, or omitting it, is the rollout rollback path and resolves every request to feature-disabled `audit-only`; this permits processing without applying redaction. Use that rollback only when the deployment's surrounding controls make non-enforcement acceptable.
+
+### Migration note
+
+This security correction does not change public types or function signatures. Consumers that previously expected enabled low-confidence direct redaction to return `audit-only` must handle `escalate` as a non-allowing review state. Consumers using `isAiGovernanceOutcomeAllowed` retain existing behavior for all five outcomes.
+
 ## Install
 
 ```bash
