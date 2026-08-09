@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - (placeholder)
 
 - **Changed**
+  - Restored exact-main npm publication on a GitHub-hosted runner through
+    short-lived OIDC, with an enforced Node/npm runtime and no long-lived
+    write-token fallback.
   - (placeholder)
 
 - **Fixed**
