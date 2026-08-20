@@ -24,11 +24,61 @@ When governance is enabled, a direct `redact` decision with normalized confidenc
 
 `audit-only` remains an allowed, deliberately non-enforcing public outcome for compatibility. It can be requested explicitly, and it is also returned with source `feature-disabled` while the governance feature flag is absent or false. Callers that require an enforced privacy control must inspect the concrete outcome and must not treat `isAiGovernanceOutcomeAllowed(...)` as proof that redaction occurred.
 
-### Rollout and rollback
+## Model-search assurance
+
+`resolveModelSearchAssurance` is a separate, deterministic policy boundary for
+3D model matching. It preserves a valid calibrated score while deriving its raw
+band (`high >= 0.75`, `low >= 0.50`, otherwise `none`) and then applies, in
+order, the evidence ceiling, the ranker's declared ceiling, and the independent
+hard-constraint gate.
+
+```ts
+import { resolveModelSearchAssurance } from "@plasius/ai-governance";
+
+const decision = resolveModelSearchAssurance({
+  score: 0.93,
+  hardConstraintPass: true,
+  evidenceMode: "text-only",
+  exactMatch: false,
+  assuranceCeiling: "low",
+});
+
+// decision.score === 0.93
+// decision.rawAssurance === "high"
+// decision.assurance === "low"
+// decision.reasonCodes === ["text-only-assurance-ceiling"]
+```
+
+| Condition | Effective assurance | Stable reason |
+| --- | --- | --- |
+| A hard constraint fails | `none` | `hard-constraint-failed` |
+| Text-only raw evidence would be `high` | At most `low` | `text-only-assurance-ceiling` |
+| The declared ranker ceiling lowers the evidence-constrained band | Declared ceiling | `ranker-assurance-ceiling` |
+| JavaScript/runtime input is malformed or internally inconsistent | `none` | `model-search-assurance-invalid-input` |
+
+`exact-identifier` evidence must set `exactMatch: true` and may derive `high`
+independently of score, but it can never bypass failed hard constraints or a
+lower declared ceiling. Text-only rankers must be non-exact and may declare
+only `low` or `none`; vision and multimodal evidence must be non-exact. Invalid
+input returns a frozen, discriminated `valid: false` decision with `score: null`
+instead of throwing or guessing.
+
+The constants and structural types intentionally align with
+`@plasius/asset-contracts` 0.3.1 without adding a runtime dependency. The
+governance helper does not construct a full `ModelMatchAssessment`; callers
+retain the calibrated score and policy reasons when they construct that
+contract at the asset boundary.
+
+This helper has no `audit-only` outcome and accepts no feature-flag snapshot.
+Hosts gate the surrounding unified asset flow with
+`asset.pipeline.unified-ai-assets.enabled`. Disabling that flag stops the flow;
+it does not weaken an assessment or turn a failed gate into a selectable match.
+
+## General-governance rollout and rollback
 
 Set `ai.governance.enabled` to `true` to enforce confidence policy. Setting it to `false`, or omitting it, is the rollout rollback path and resolves every request to feature-disabled `audit-only`; this permits processing without applying redaction. Use that rollback only when the deployment's surrounding controls make non-enforcement acceptable.
 
-### Migration note
+## General-governance migration note
 
 This security correction does not change public types or function signatures. Consumers that previously expected enabled low-confidence direct redaction to return `audit-only` must handle `escalate` as a non-allowing review state. Consumers using `isAiGovernanceOutcomeAllowed` retain existing behavior for all five outcomes.
 
