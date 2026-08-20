@@ -10,13 +10,12 @@ permissions:
   actions: read
   contents: read
 
-env:
-  FALLBACK_RUNNER_LABEL: ubuntu-latest
-  SELF_HOSTED_RUNNER_LABELS: '["self-hosted","Linux","X64"]'
-
 jobs:
   build-test:
-    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"' || vars.CI_RUNNER_LABELS || '["self-hosted","Linux","X64"]') }}
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on:
+      group: Public CI - Quarantined
+      labels: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +38,9 @@ jobs:
 
       - name: Build
         run: npm run build --if-present
+
+      - name: Public package integrity
+        run: npm run pack:check
 
       - name: Test with coverage
         run: |
