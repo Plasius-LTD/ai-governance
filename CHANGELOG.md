@@ -21,7 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - (placeholder)
 
 - **Security**
-  - (placeholder)
+  - Fail closed to `escalate` when an enabled direct redaction decision has confidence below `0.35`, preventing unreliable redaction evidence from becoming an allowed, non-enforcing `audit-only` outcome.
+  - Documented the compatibility distinction between explicit or rollout-disabled `audit-only` decisions and enforced redaction outcomes without changing public signatures or the existing outcome-allowance helper.
 
 ## [0.1.6] - 2026-06-27
 
