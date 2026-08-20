@@ -79,43 +79,112 @@ describe("@plasius/ai-governance", () => {
     });
   });
 
-  it("defaults non-finite confidence to zero before policy evaluation", () => {
-    expect(
-      resolveAiGovernanceDecision({
-        requestedDecision: "allow",
-        policyId: "policy-nan",
-        policyVersion: "2026-05-A",
-        correlationId: "corr-nan",
-        dataClassification: "sensitive",
-        confidence: Number.NaN,
-        featureFlags: {
-          [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+  it.each([
+    ["NaN", Number.NaN],
+    ["positive infinity", Number.POSITIVE_INFINITY],
+    ["negative infinity", Number.NEGATIVE_INFINITY],
+    ["negative confidence", -0.01],
+  ])(
+    "normalizes %s to zero and fails direct redaction closed",
+    (_label, confidence) => {
+      expect(
+        resolveAiGovernanceDecision({
+          requestedDecision: "redact",
+          policyId: "policy-invalid-confidence",
+          policyVersion: "2026-05-A",
+          correlationId: "corr-invalid-confidence",
+          confidence,
+          featureFlags: {
+            [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+          },
+        })
+      ).toMatchObject({
+        confidence: 0,
+        outcome: "escalate",
+        reasonCodes: ["low-confidence-redaction-escalated"],
+        audit: {
+          outcome: "escalate",
+          confidence: 0,
         },
-      })
-    ).toMatchObject({
-      confidence: 0,
-      outcome: "redact",
-      reasonCodes: ["low-confidence-sensitive-content"],
+      });
+    }
+  );
+
+  it("fails closed when direct redaction confidence is unreliable", () => {
+    const result = resolveAiGovernanceDecision({
+      requestedDecision: "redact",
+      policyId: "policy-redact",
+      policyVersion: "2026-05-A",
+      correlationId: "corr-redact",
+      confidence: 0.1,
+      featureFlags: {
+        [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+      },
     });
+
+    expect(result).toMatchObject({
+      requestedDecision: "redact",
+      outcome: "escalate",
+      reasonCodes: ["low-confidence-redaction-escalated"],
+      source: "policy",
+      audit: {
+        outcome: "escalate",
+      },
+    });
+    expect(isAiGovernanceOutcomeAllowed(result.outcome)).toBe(false);
   });
 
-  it("disables low-confidence redaction requests for audit only", () => {
-    expect(
-      resolveAiGovernanceDecision({
+  it.each([
+    [0.349999, "escalate", "low-confidence-redaction-escalated"],
+    [0.35, "redact", "governance-policy-pass"],
+    [1, "redact", "governance-policy-pass"],
+  ] as const)(
+    "applies the direct redaction threshold at confidence %s",
+    (confidence, outcome, reasonCode) => {
+      const result = resolveAiGovernanceDecision({
         requestedDecision: "redact",
-        policyId: "policy-redact",
+        policyId: "policy-redact-boundary",
         policyVersion: "2026-05-A",
-        correlationId: "corr-redact",
-        confidence: 0.1,
+        correlationId: `corr-redact-${confidence}`,
+        confidence,
         featureFlags: {
           [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
         },
-      })
-    ).toMatchObject({
+      });
+
+      expect(result).toMatchObject({
+        confidence,
+        outcome,
+        reasonCodes: [reasonCode],
+        audit: { outcome },
+      });
+      expect(isAiGovernanceOutcomeAllowed(result.outcome)).toBe(
+        outcome === "redact"
+      );
+    }
+  );
+
+  it("appends the fail-closed reason without mutating caller reasons", () => {
+    const callerReasons = Object.freeze(["caller-review-required", " "]);
+
+    const result = resolveAiGovernanceDecision({
       requestedDecision: "redact",
-      outcome: "audit-only",
-      reasonCodes: ["redaction-disabled-for-unreliable-input"],
+      policyId: "policy-redact-reasons",
+      policyVersion: "2026-05-A",
+      correlationId: "corr-redact-reasons",
+      confidence: 0.2,
+      reasonCodes: callerReasons,
+      featureFlags: {
+        [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: true,
+      },
     });
+
+    expect(result.reasonCodes).toEqual([
+      "caller-review-required",
+      "low-confidence-redaction-escalated",
+    ]);
+    expect(result.reasonCodes).not.toBe(callerReasons);
+    expect(callerReasons).toEqual(["caller-review-required", " "]);
   });
 
   it("adds a pass reason when governance allows the requested outcome", () => {
@@ -171,26 +240,47 @@ describe("@plasius/ai-governance", () => {
     });
   });
 
-  it("falls back to audit-only when governance flag is disabled", () => {
-    expect(
-      resolveAiGovernanceDecision({
-        requestedDecision: "allow",
-        policyId: "policy-audit",
+  it.each([
+    ["absent", undefined],
+    ["false", false],
+  ] as const)(
+    "keeps rollout-disabled low-confidence redaction audit-only when the flag is %s",
+    (_label, enabled) => {
+      const featureFlags =
+        enabled === undefined
+          ? undefined
+          : { [AI_GOVERNANCE_FEATURE_FLAGS.decisions]: enabled };
+      const result = resolveAiGovernanceDecision({
+        requestedDecision: "redact",
+        policyId: "policy-rollout-disabled",
         policyVersion: "2026-05-A",
-        correlationId: "corr-3",
-        confidence: 0.99,
-      })
-    ).toMatchObject({
-      requestedDecision: "allow",
-      outcome: "audit-only",
-      reasonCodes: ["governance-feature-disabled"],
-      source: "feature-disabled",
-      enabledFeatureFlags: [],
-    });
-  });
+        correlationId: "corr-rollout-disabled",
+        confidence: 0.1,
+        featureFlags,
+      });
 
-  it("identifies audit-only as a non-enforcing outcome", () => {
-    expect(isAiGovernanceOutcomeAllowed("audit-only")).toBe(true);
-    expect(isAiGovernanceOutcomeAllowed("deny")).toBe(false);
-  });
+      expect(result).toMatchObject({
+        requestedDecision: "redact",
+        outcome: "audit-only",
+        reasonCodes: ["governance-feature-disabled"],
+        source: "feature-disabled",
+        enabledFeatureFlags: [],
+        audit: { outcome: "audit-only" },
+      });
+      expect(isAiGovernanceOutcomeAllowed(result.outcome)).toBe(true);
+    }
+  );
+
+  it.each([
+    ["allow", true],
+    ["deny", false],
+    ["escalate", false],
+    ["redact", true],
+    ["audit-only", true],
+  ] as const)(
+    "reports whether the %s outcome allows processing",
+    (outcome, allowed) => {
+      expect(isAiGovernanceOutcomeAllowed(outcome)).toBe(allowed);
+    }
+  );
 });
