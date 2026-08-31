@@ -13,8 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Restored exact-main npm publication on a GitHub-hosted runner through
     short-lived OIDC, with an enforced Node/npm runtime and no long-lived
     write-token fallback.
-  - Moved public package CI to GitHub-hosted capacity so internal and external
-    branches cannot queue on or execute against company-managed runners.
+  - Routed same-repository package CI through a repository-owned reusable
+    workflow pinned to `main` and the restricted `Public CI - Quarantined`
+    runner group, with fixed runner labels, duplicate fork guards, and a
+    public-package integrity check. Fork pull requests remain excluded.
   - (placeholder)
 
 - **Fixed**

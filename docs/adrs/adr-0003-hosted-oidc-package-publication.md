@@ -20,6 +20,17 @@ checks. No product capability is introduced.
 
 Publication is phase-isolated: dependency installation, package validation, SBOM generation, and immutable tarball packing run in `validate_and_pack` without the `production` environment or OIDC permission. The final hosted `publish` job downloads only that sealed artifact, explicitly installs npm 11.6.2, runs no repository dependency code, and publishes the tarball with lifecycle scripts disabled. It re-fetches current `main` immediately before the first release mutation and again immediately before npm publication. `.npmrc` contains no registry-auth placeholder, and release preparation returns the reviewed current `main` HEAD rather than package-file history.
 
+Public package CI uses a separate trust boundary. The trigger-only
+`.github/workflows/ci.yml` calls the repository-owned
+`Plasius-LTD/ai-governance/.github/workflows/ci-self-hosted.yml@main`. Both the
+caller and reusable workflow reject fork pull requests. The reusable workflow
+accepts no caller-controlled inputs and selects only the literal
+`Public CI - Quarantined` runner group with `[self-hosted, Linux, X64]` labels.
+It runs the existing lint, typecheck, audit, build, coverage, and package
+integrity checks. Before the lightweight caller is enabled, the reusable file
+must exist on `main` and the runner group must allowlist
+`Plasius-LTD/ai-governance/.github/workflows/ci-self-hosted.yml@refs/heads/main`.
+
 The final npm publication job in `.github/workflows/cd.yml`:
 
 1. runs on the literal `ubuntu-latest` GitHub-hosted runner;
@@ -42,9 +53,14 @@ The external npm trusted publisher is bound exactly to organization
 - A moved main branch, absent exact-SHA CI result, unsupported runtime, missing
   trusted-publisher binding, or OIDC failure stops publication before npm
   mutation.
-- Public package CI and the narrow publication boundary use isolated
-  GitHub-hosted capacity, keeping untrusted repository code away from company
-  runners and avoiding private runner-group availability drift.
+- Same-repository package CI can use only the explicitly allowlisted reusable
+  workflow and restricted quarantined runners. Fork code is skipped, and a
+  pull request cannot choose a runner group or labels.
+- npm publication remains isolated on GitHub-hosted capacity because trusted
+  publishing does not support self-hosted runners.
+- Adding or changing the reusable workflow requires a reviewed bootstrap to
+  `main` before a pull-request caller can consume it; failure to bootstrap or
+  allowlist it fails closed at workflow admission.
 - Releases use short-lived workflow identity and retain npm provenance without
   a reusable write credential.
 - Rollback disables `cd.yml` or the release-integrity flag. Published package

@@ -101,9 +101,14 @@ Apache-2.0
 Production package publication runs only from `.github/workflows/cd.yml` on
 protected `main`. The job verifies that the prepared commit is still the
 current main commit and has an exact successful `ci.yml` push result before it
-mutates release state. Public package CI runs on GitHub-hosted capacity so it
-cannot execute on company-managed runners. npm publication runs on
-GitHub-hosted Node.js 24 with
+mutates release state. Public package CI delegates to the repository-owned
+`.github/workflows/ci-self-hosted.yml@main` workflow and runs only same-repository
+events in the restricted `Public CI - Quarantined` group on the fixed
+`[self-hosted, Linux, X64]` labels. Both the caller and reusable workflow reject
+fork pull requests, and the caller cannot select runner labels. The reusable
+workflow must exist on `main` and be present in the runner-group workflow
+allowlist before the lightweight caller can be enabled. npm publication remains
+isolated on GitHub-hosted Node.js 24 with
 npm 11.5.1 or newer, uses the protected `production` environment and
 short-lived npm OIDC with provenance, and has no long-lived npm write-token
 fallback. Rollback disables CD; it never rewrites published package history.
