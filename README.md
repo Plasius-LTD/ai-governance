@@ -1,5 +1,13 @@
 # @plasius/ai-governance
 
+[![npm version](https://img.shields.io/npm/v/@plasius/ai-governance.svg)](https://www.npmjs.com/package/@plasius/ai-governance)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Plasius-LTD/ai-governance/ci.yml?branch=main&label=build&style=flat)](https://github.com/Plasius-LTD/ai-governance/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/codecov/c/github/Plasius-LTD/ai-governance)](https://codecov.io/gh/Plasius-LTD/ai-governance)
+[![License](https://img.shields.io/github/license/Plasius-LTD/ai-governance)](./LICENSE)
+[![Code of Conduct](https://img.shields.io/badge/code%20of%20conduct-yes-blue.svg)](./CODE_OF_CONDUCT.md)
+[![Security Policy](https://img.shields.io/badge/security%20policy-yes-orange.svg)](./SECURITY.md)
+[![Changelog](https://img.shields.io/badge/changelog-md-blue.svg)](./CHANGELOG.md)
+
 AI guardrail, policy decision, confidence, and audit contracts for Plasius agentic AI.
 
 ## Scope
