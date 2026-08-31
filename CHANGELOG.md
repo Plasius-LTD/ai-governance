@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Added stable fail-closed reason codes, exact-identifier handling, runtime input validation, and the inherited `asset.pipeline.unified-ai-assets.enabled` rollout flag contract.
 
 - **Changed**
+  - Reused the canonical model-match thresholds, assurance bands, evidence modes, ceiling reason codes, and TypeScript types from `@plasius/asset-contracts` instead of maintaining an independent copy.
   - (placeholder)
 
 - **Fixed**

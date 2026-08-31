@@ -63,11 +63,11 @@ only `low` or `none`; vision and multimodal evidence must be non-exact. Invalid
 input returns a frozen, discriminated `valid: false` decision with `score: null`
 instead of throwing or guessing.
 
-The constants and structural types intentionally align with
-`@plasius/asset-contracts` 0.3.1 without adding a runtime dependency. The
-governance helper does not construct a full `ModelMatchAssessment`; callers
-retain the calibrated score and policy reasons when they construct that
-contract at the asset boundary.
+The assurance thresholds, bands, evidence modes, ceiling reason codes, and
+their TypeScript types are imported from `@plasius/asset-contracts` 0.3.1 or
+newer. The governance helper does not construct a full `ModelMatchAssessment`;
+callers retain the calibrated score and policy reasons when they construct
+that contract at the asset boundary.
 
 This helper has no `audit-only` outcome and accepts no feature-flag snapshot.
 Hosts gate the surrounding unified asset flow with

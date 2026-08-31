@@ -1,3 +1,13 @@
+import {
+  MODEL_MATCH_ASSURANCE_BANDS,
+  MODEL_MATCH_ASSURANCE_THRESHOLDS,
+  MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE,
+  MODEL_RANKER_EVIDENCE_MODES,
+  MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE,
+  type ModelMatchAssurance,
+  type ModelRankerEvidenceMode,
+} from "@plasius/asset-contracts";
+
 export interface AiPackageDescriptor {
   readonly packageName: string;
   readonly featureFlagId: string;
@@ -21,39 +31,26 @@ export const MODEL_SEARCH_ASSURANCE_FEATURE_FLAG_ID =
 export const MODEL_SEARCH_ASSURANCE_POLICY_VERSION = "2026-08-20.v1" as const;
 
 /** Calibrated score thresholds shared with model-resolution contracts. */
-export const MODEL_SEARCH_ASSURANCE_THRESHOLDS = Object.freeze({
-  high: 0.75,
-  low: 0.5,
-} as const);
+export const MODEL_SEARCH_ASSURANCE_THRESHOLDS =
+  MODEL_MATCH_ASSURANCE_THRESHOLDS;
 
 /** Assurance bands emitted by the model-search policy. */
-export const MODEL_SEARCH_ASSURANCE_BANDS = Object.freeze([
-  "high",
-  "low",
-  "none",
-] as const);
+export const MODEL_SEARCH_ASSURANCE_BANDS = MODEL_MATCH_ASSURANCE_BANDS;
 
 /** Evidence modes accepted from calibrated model-search rankers. */
-export const MODEL_SEARCH_EVIDENCE_MODES = Object.freeze([
-  "text-only",
-  "vision",
-  "multimodal",
-  "exact-identifier",
-] as const);
+export const MODEL_SEARCH_EVIDENCE_MODES = MODEL_RANKER_EVIDENCE_MODES;
 
 /** Stable audit reasons emitted when the policy constrains an assessment. */
 export const MODEL_SEARCH_ASSURANCE_REASON_CODES = Object.freeze({
   invalidInput: "model-search-assurance-invalid-input",
   hardConstraintFailed: "hard-constraint-failed",
-  textOnlyCeiling: "text-only-assurance-ceiling",
-  rankerCeiling: "ranker-assurance-ceiling",
+  textOnlyCeiling: MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE,
+  rankerCeiling: MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE,
 } as const);
 
-export type ModelSearchAssurance =
-  (typeof MODEL_SEARCH_ASSURANCE_BANDS)[number];
+export type ModelSearchAssurance = ModelMatchAssurance;
 
-export type ModelSearchEvidenceMode =
-  (typeof MODEL_SEARCH_EVIDENCE_MODES)[number];
+export type ModelSearchEvidenceMode = ModelRankerEvidenceMode;
 
 export type ModelSearchAssuranceReasonCode =
   (typeof MODEL_SEARCH_ASSURANCE_REASON_CODES)[keyof typeof MODEL_SEARCH_ASSURANCE_REASON_CODES];

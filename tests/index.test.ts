@@ -1,4 +1,11 @@
 import { describe, expect, it } from "vitest";
+import {
+  MODEL_MATCH_ASSURANCE_BANDS,
+  MODEL_MATCH_ASSURANCE_THRESHOLDS,
+  MODEL_RANKER_EVIDENCE_MODES,
+  MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE,
+  MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE,
+} from "@plasius/asset-contracts";
 
 import {
   AI_GOVERNANCE_ENV_PREFIX,
@@ -308,6 +315,17 @@ describe("model-search assurance policy", () => {
       "asset.pipeline.unified-ai-assets.enabled"
     );
     expect(MODEL_SEARCH_ASSURANCE_BANDS).not.toContain("audit-only");
+    expect(MODEL_SEARCH_ASSURANCE_THRESHOLDS).toBe(
+      MODEL_MATCH_ASSURANCE_THRESHOLDS
+    );
+    expect(MODEL_SEARCH_ASSURANCE_BANDS).toBe(MODEL_MATCH_ASSURANCE_BANDS);
+    expect(MODEL_SEARCH_EVIDENCE_MODES).toBe(MODEL_RANKER_EVIDENCE_MODES);
+    expect(MODEL_SEARCH_ASSURANCE_REASON_CODES.textOnlyCeiling).toBe(
+      MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE
+    );
+    expect(MODEL_SEARCH_ASSURANCE_REASON_CODES.rankerCeiling).toBe(
+      MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE
+    );
   });
 
   it("preserves the calibrated score while capping text-only evidence at low", () => {

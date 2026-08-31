@@ -43,9 +43,10 @@ evidence/exactness combinations return a frozen `valid: false`, `none` decision.
 The invalid result uses `score: null` so a fabricated normalized score cannot be
 mistaken for calibrated evidence.
 
-The policy's literal unions and reason values remain structurally compatible
-with `@plasius/asset-contracts` 0.3.1. This package does not add a runtime
-dependency because it neither constructs nor validates the full asset contract.
+The policy imports its literal unions, calibrated thresholds, evidence modes,
+and ceiling reason values directly from `@plasius/asset-contracts` 0.3.1 or
+newer. This keeps the governance boundary linked to the canonical contract
+without requiring it to construct or validate a full asset assessment.
 
 The helper accepts no governance feature-flag snapshot and has no `audit-only`
 band. Its parent flow is remotely controlled by
