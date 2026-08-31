@@ -7,16 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 - **Added**
-  - (placeholder)
+  - Added a deterministic, immutable model-search assurance resolver that preserves calibrated scores while applying hard-constraint, evidence-mode, and ranker-declared ceilings.
+  - Added stable fail-closed reason codes, exact-identifier handling, runtime input validation, and the inherited `asset.pipeline.unified-ai-assets.enabled` rollout flag contract.
 
 - **Changed**
+  - Reused the canonical model-match thresholds, assurance bands, evidence modes, ceiling reason codes, and TypeScript types from `@plasius/asset-contracts` instead of maintaining an independent copy.
   - Restored exact-main npm publication on a GitHub-hosted runner through
     short-lived OIDC, with an enforced Node/npm runtime and no long-lived
     write-token fallback.
-  - Routed same-repository package CI through a repository-owned reusable
-    workflow pinned to `main` and the restricted `Public CI - Quarantined`
-    runner group, with fixed runner labels, duplicate fork guards, and a
-    public-package integrity check. Fork pull requests remain excluded.
+  - Routed same-repository package CI through an exact-revision hosted reusable
+    workflow with package-manager caching disabled, duplicate fork guards, and
+    a public-package integrity check. Fork pull requests remain excluded.
   - (placeholder)
 
 - **Fixed**

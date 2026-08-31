@@ -10,43 +10,38 @@ const ciWorkflow = readFileSync(
   resolve(process.cwd(), ".github/workflows/ci.yml"),
   "utf8",
 );
-const selfHostedWorkflowPath = resolve(
+const hostedWorkflowPath = resolve(
   process.cwd(),
-  ".github/workflows/ci-self-hosted.yml",
+  ".github/workflows/ci-hosted.yml",
 );
-const selfHostedWorkflow = existsSync(selfHostedWorkflowPath)
-  ? readFileSync(selfHostedWorkflowPath, "utf8")
+const hostedWorkflow = existsSync(hostedWorkflowPath)
+  ? readFileSync(hostedWorkflowPath, "utf8")
   : "";
-const workflowRepository = ["Plasius", "LTD/ai-governance"].join("-");
 
 describe("npm release trust boundary", () => {
-  it("admits same-repository pull requests through the approved reusable workflow", () => {
-    expect(existsSync(selfHostedWorkflowPath)).toBe(true);
+  it("admits same-repository pull requests through exact-revision hosted validation", () => {
+    expect(existsSync(hostedWorkflowPath)).toBe(true);
     expect(ciWorkflow).toContain("pull_request:\n    branches: [main]");
     expect(ciWorkflow).toContain("workflow_dispatch:");
     expect(ciWorkflow).toContain(
-      "self-hosted-validation:\n    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}\n    uses: " +
-        workflowRepository +
-        "/.github/workflows/ci-self-hosted.yml@main",
+      "hosted-validation:\n    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}\n    uses: ./.github/workflows/ci-hosted.yml",
     );
-    expect(selfHostedWorkflow).toContain("on:\n  workflow_call:");
-    expect(selfHostedWorkflow).toContain(
+    expect(hostedWorkflow).toContain("on:\n  workflow_call:");
+    expect(hostedWorkflow).toContain(
       "build-test:\n    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
     );
-    expect(
-      selfHostedWorkflow.match(
-        /runs-on:\n {6}group: Public CI - Quarantined\n {6}labels: \[self-hosted, Linux, X64\]/gu,
-      ),
-    ).toHaveLength(1);
-    expect(selfHostedWorkflow).toContain("run: npm run pack:check");
+    expect(hostedWorkflow).toContain("runs-on: ubuntu-latest");
+    expect(hostedWorkflow).toContain("package-manager-cache: false");
+    expect(hostedWorkflow).toContain("run: npm run pack:check");
     expect(ciWorkflow).not.toContain("runs-on:");
     expect(ciWorkflow).not.toContain("CI_RUNNER_LABELS");
     expect(ciWorkflow).not.toContain("pull_request_target");
-    expect(selfHostedWorkflow).not.toContain("pull_request_target");
-    expect(selfHostedWorkflow).not.toContain("ubuntu-latest");
-    expect(selfHostedWorkflow).not.toContain("workflow_call:\n    inputs:");
-    expect(selfHostedWorkflow).not.toContain("${{ inputs.");
-    expect(selfHostedWorkflow).not.toMatch(/runs-on:\s*\$\{\{/u);
+    expect(hostedWorkflow).not.toContain("pull_request_target");
+    expect(hostedWorkflow).not.toContain("self-hosted");
+    expect(hostedWorkflow).not.toContain("workflow_call:\n    inputs:");
+    expect(hostedWorkflow).not.toContain("${{ inputs.");
+    expect(hostedWorkflow).not.toMatch(/runs-on:\s*\$\{\{/u);
+    expect(ciWorkflow).not.toContain("@main");
   });
 
   it("uses hosted OIDC publication without a long-lived npm write token", () => {

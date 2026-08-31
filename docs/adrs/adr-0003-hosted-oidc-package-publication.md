@@ -22,14 +22,11 @@ Publication is phase-isolated: dependency installation, package validation, SBOM
 
 Public package CI uses a separate trust boundary. The trigger-only
 `.github/workflows/ci.yml` calls the repository-owned
-`Plasius-LTD/ai-governance/.github/workflows/ci-self-hosted.yml@main`. Both the
+`.github/workflows/ci-hosted.yml` from the same reviewed revision. Both the
 caller and reusable workflow reject fork pull requests. The reusable workflow
-accepts no caller-controlled inputs and selects only the literal
-`Public CI - Quarantined` runner group with `[self-hosted, Linux, X64]` labels.
-It runs the existing lint, typecheck, audit, build, coverage, and package
-integrity checks. Before the lightweight caller is enabled, the reusable file
-must exist on `main` and the runner group must allowlist
-`Plasius-LTD/ai-governance/.github/workflows/ci-self-hosted.yml@refs/heads/main`.
+accepts no caller-controlled inputs, selects literal `ubuntu-latest`, disables
+package-manager caching, and runs the existing lint, typecheck, audit, build,
+coverage, and package-integrity checks.
 
 The final npm publication job in `.github/workflows/cd.yml`:
 
@@ -53,14 +50,13 @@ The external npm trusted publisher is bound exactly to organization
 - A moved main branch, absent exact-SHA CI result, unsupported runtime, missing
   trusted-publisher binding, or OIDC failure stops publication before npm
   mutation.
-- Same-repository package CI can use only the explicitly allowlisted reusable
-  workflow and restricted quarantined runners. Fork code is skipped, and a
-  pull request cannot choose a runner group or labels.
+- Same-repository package CI uses only the exact-revision hosted reusable
+  workflow. Fork code is skipped, and a pull request cannot choose a runner or
+  cache policy.
 - npm publication remains isolated on GitHub-hosted capacity because trusted
   publishing does not support self-hosted runners.
-- Adding or changing the reusable workflow requires a reviewed bootstrap to
-  `main` before a pull-request caller can consume it; failure to bootstrap or
-  allowlist it fails closed at workflow admission.
+- The reusable workflow is consumed from the exact reviewed revision, so branch
+  validation cannot silently execute a different workflow from `main`.
 - Releases use short-lived workflow identity and retain npm provenance without
   a reusable write credential.
 - Rollback disables `cd.yml` or the release-integrity flag. Published package

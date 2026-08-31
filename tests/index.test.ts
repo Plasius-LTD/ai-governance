@@ -1,4 +1,11 @@
 import { describe, expect, it } from "vitest";
+import {
+  MODEL_MATCH_ASSURANCE_BANDS,
+  MODEL_MATCH_ASSURANCE_THRESHOLDS,
+  MODEL_RANKER_EVIDENCE_MODES,
+  MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE,
+  MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE,
+} from "@plasius/asset-contracts";
 
 import {
   AI_GOVERNANCE_ENV_PREFIX,
@@ -7,7 +14,13 @@ import {
   AI_GOVERNANCE_PACKAGE,
   AI_GOVERNANCE_DATA_CLASSIFICATIONS,
   AI_GOVERNANCE_OUTCOMES,
+  MODEL_SEARCH_ASSURANCE_BANDS,
+  MODEL_SEARCH_ASSURANCE_FEATURE_FLAG_ID,
+  MODEL_SEARCH_ASSURANCE_REASON_CODES,
+  MODEL_SEARCH_ASSURANCE_THRESHOLDS,
+  MODEL_SEARCH_EVIDENCE_MODES,
   isAiGovernanceOutcomeAllowed,
+  resolveModelSearchAssurance,
   resolveAiGovernanceDecision,
   packageDescriptor,
 } from "../src/index.js";
@@ -283,4 +296,352 @@ describe("@plasius/ai-governance", () => {
       expect(isAiGovernanceOutcomeAllowed(outcome)).toBe(allowed);
     }
   );
+});
+
+describe("model-search assurance policy", () => {
+  it("exports the calibrated policy vocabulary and inherited rollout flag", () => {
+    expect(MODEL_SEARCH_ASSURANCE_THRESHOLDS).toEqual({
+      high: 0.75,
+      low: 0.5,
+    });
+    expect(MODEL_SEARCH_ASSURANCE_BANDS).toEqual(["high", "low", "none"]);
+    expect(MODEL_SEARCH_EVIDENCE_MODES).toEqual([
+      "text-only",
+      "vision",
+      "multimodal",
+      "exact-identifier",
+    ]);
+    expect(MODEL_SEARCH_ASSURANCE_FEATURE_FLAG_ID).toBe(
+      "asset.pipeline.unified-ai-assets.enabled"
+    );
+    expect(MODEL_SEARCH_ASSURANCE_BANDS).not.toContain("audit-only");
+    expect(MODEL_SEARCH_ASSURANCE_THRESHOLDS).toBe(
+      MODEL_MATCH_ASSURANCE_THRESHOLDS
+    );
+    expect(MODEL_SEARCH_ASSURANCE_BANDS).toBe(MODEL_MATCH_ASSURANCE_BANDS);
+    expect(MODEL_SEARCH_EVIDENCE_MODES).toBe(MODEL_RANKER_EVIDENCE_MODES);
+    expect(MODEL_SEARCH_ASSURANCE_REASON_CODES.textOnlyCeiling).toBe(
+      MODEL_TEXT_ONLY_ASSURANCE_CEILING_REASON_CODE
+    );
+    expect(MODEL_SEARCH_ASSURANCE_REASON_CODES.rankerCeiling).toBe(
+      MODEL_RANKER_ASSURANCE_CEILING_REASON_CODE
+    );
+  });
+
+  it("preserves the calibrated score while capping text-only evidence at low", () => {
+    const result = resolveModelSearchAssurance({
+      score: 0.93,
+      hardConstraintPass: true,
+      evidenceMode: "text-only",
+      exactMatch: false,
+      assuranceCeiling: "low",
+    });
+
+    expect(result).toEqual({
+      valid: true,
+      policyVersion: "2026-08-20.v1",
+      score: 0.93,
+      rawAssurance: "high",
+      assurance: "low",
+      hardConstraintPass: true,
+      evidenceMode: "text-only",
+      exactMatch: false,
+      declaredAssuranceCeiling: "low",
+      appliedAssuranceCeiling: "low",
+      reasonCodes: [MODEL_SEARCH_ASSURANCE_REASON_CODES.textOnlyCeiling],
+    });
+  });
+
+  it.each([
+    ["vision", 0.75],
+    ["multimodal", 1],
+  ] as const)(
+    "allows %s evidence to remain high when gates and the ceiling permit",
+    (evidenceMode, score) => {
+      expect(
+        resolveModelSearchAssurance({
+          score,
+          hardConstraintPass: true,
+          evidenceMode,
+          exactMatch: false,
+          assuranceCeiling: "high",
+        })
+      ).toMatchObject({
+        valid: true,
+        score,
+        rawAssurance: "high",
+        assurance: "high",
+        reasonCodes: [],
+      });
+    }
+  );
+
+  it("always returns none after a failed hard-constraint gate", () => {
+    expect(
+      resolveModelSearchAssurance({
+        score: 0.99,
+        hardConstraintPass: false,
+        evidenceMode: "multimodal",
+        exactMatch: false,
+        assuranceCeiling: "high",
+      })
+    ).toMatchObject({
+      valid: true,
+      score: 0.99,
+      rawAssurance: "high",
+      assurance: "none",
+      hardConstraintPass: false,
+      reasonCodes: [
+        MODEL_SEARCH_ASSURANCE_REASON_CODES.hardConstraintFailed,
+      ],
+    });
+  });
+
+  it.each([
+    ["vision", 0.99, "low", "low"],
+    ["multimodal", 0.7, "none", "none"],
+    ["exact-identifier", 0.1, "low", "low"],
+  ] as const)(
+    "keeps a lower %s ranker ceiling authoritative for %s evidence",
+    (evidenceMode, score, assuranceCeiling, expected) => {
+      const exactMatch = evidenceMode === "exact-identifier";
+      expect(
+        resolveModelSearchAssurance({
+          score,
+          hardConstraintPass: true,
+          evidenceMode,
+          exactMatch,
+          assuranceCeiling,
+        })
+      ).toMatchObject({
+        valid: true,
+        score,
+        assurance: expected,
+        declaredAssuranceCeiling: assuranceCeiling,
+        appliedAssuranceCeiling: assuranceCeiling,
+        reasonCodes: [
+          MODEL_SEARCH_ASSURANCE_REASON_CODES.rankerCeiling,
+        ],
+      });
+    }
+  );
+
+  it("allows an exact identifier match to derive high independently of score", () => {
+    expect(
+      resolveModelSearchAssurance({
+        score: 0,
+        hardConstraintPass: true,
+        evidenceMode: "exact-identifier",
+        exactMatch: true,
+        assuranceCeiling: "high",
+      })
+    ).toMatchObject({
+      valid: true,
+      score: 0,
+      rawAssurance: "high",
+      assurance: "high",
+      reasonCodes: [],
+    });
+  });
+
+  it.each([
+    [0.499999, "none"],
+    [0.5, "low"],
+    [0.749999, "low"],
+    [0.75, "high"],
+  ] as const)("classifies score %s as raw %s", (score, rawAssurance) => {
+    expect(
+      resolveModelSearchAssurance({
+        score,
+        hardConstraintPass: true,
+        evidenceMode: "multimodal",
+        exactMatch: false,
+        assuranceCeiling: "high",
+      })
+    ).toMatchObject({ valid: true, score, rawAssurance, assurance: rawAssurance });
+  });
+
+  it("records both evidence and declared ceilings in deterministic order", () => {
+    expect(
+      resolveModelSearchAssurance({
+        score: 0.9,
+        hardConstraintPass: true,
+        evidenceMode: "text-only",
+        exactMatch: false,
+        assuranceCeiling: "none",
+      })
+    ).toMatchObject({
+      assurance: "none",
+      appliedAssuranceCeiling: "none",
+      reasonCodes: [
+        MODEL_SEARCH_ASSURANCE_REASON_CODES.textOnlyCeiling,
+        MODEL_SEARCH_ASSURANCE_REASON_CODES.rankerCeiling,
+      ],
+    });
+  });
+
+  it.each([
+    null,
+    undefined,
+    [],
+    {},
+    {
+      score: Number.NaN,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: Number.POSITIVE_INFINITY,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: -0.01,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 1.01,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: "true",
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "unknown",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "text-only",
+      exactMatch: true,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "text-only",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "exact-identifier",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: true,
+      assuranceCeiling: "high",
+    },
+    {
+      score: 0.9,
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "audit-only",
+    },
+  ])("fails malformed runtime input closed without throwing: %#", (input) => {
+    const result = resolveModelSearchAssurance(input);
+
+    expect(result).toEqual({
+      valid: false,
+      policyVersion: "2026-08-20.v1",
+      score: null,
+      rawAssurance: "none",
+      assurance: "none",
+      hardConstraintPass: false,
+      evidenceMode: null,
+      exactMatch: false,
+      declaredAssuranceCeiling: null,
+      appliedAssuranceCeiling: "none",
+      reasonCodes: [MODEL_SEARCH_ASSURANCE_REASON_CODES.invalidInput],
+    });
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.reasonCodes)).toBe(true);
+  });
+
+  it("fails closed without invoking accessor properties", () => {
+    let getterCalls = 0;
+    const input = {
+      hardConstraintPass: true,
+      evidenceMode: "vision",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    } as Record<string, unknown>;
+    Object.defineProperty(input, "score", {
+      enumerable: true,
+      get() {
+        getterCalls += 1;
+        return 0.9;
+      },
+    });
+
+    expect(resolveModelSearchAssurance(input)).toMatchObject({
+      valid: false,
+      assurance: "none",
+      reasonCodes: [MODEL_SEARCH_ASSURANCE_REASON_CODES.invalidInput],
+    });
+    expect(getterCalls).toBe(0);
+  });
+
+  it("fails a hostile proxy closed without leaking its exception", () => {
+    const input = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("untrusted-boundary-error");
+        },
+      }
+    );
+
+    expect(() => resolveModelSearchAssurance(input)).not.toThrow();
+    expect(resolveModelSearchAssurance(input)).toMatchObject({
+      valid: false,
+      assurance: "none",
+      reasonCodes: [MODEL_SEARCH_ASSURANCE_REASON_CODES.invalidInput],
+    });
+  });
+
+  it("returns deeply immutable decisions without mutating caller input", () => {
+    const input = Object.freeze({
+      score: 0.8,
+      hardConstraintPass: true,
+      evidenceMode: "multimodal",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    } as const);
+    const result = resolveModelSearchAssurance(input);
+
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.reasonCodes)).toBe(true);
+    expect(input).toEqual({
+      score: 0.8,
+      hardConstraintPass: true,
+      evidenceMode: "multimodal",
+      exactMatch: false,
+      assuranceCeiling: "high",
+    });
+  });
 });
