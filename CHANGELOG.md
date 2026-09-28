@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- Refresh npm dependency lockfile to current supported stable versions (weekly maintenance, 2026-09-28). Refresh published Plasius package baselines after upstream releases.
+
 - **Added**
   - Added a deterministic, immutable model-search assurance resolver that preserves calibrated scores while applying hard-constraint, evidence-mode, and ranker-declared ceilings.
   - Added stable fail-closed reason codes, exact-identifier handling, runtime input validation, and the inherited `asset.pipeline.unified-ai-assets.enabled` rollout flag contract.
