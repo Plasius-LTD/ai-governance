@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.12] - 2026-11-22
+
 - Consume the verified upstream security releases from the weekly dependency rollout; retain existing runtime contracts.
 
 - **Added**
@@ -198,3 +212,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.9]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.9
 [0.1.10]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.10
 [0.1.11]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.11
+[0.1.12]: https://github.com/Plasius-LTD/ai-governance/releases/tag/v0.1.12
